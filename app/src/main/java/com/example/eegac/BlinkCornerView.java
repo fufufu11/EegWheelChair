@@ -1,3 +1,4 @@
+// BlinkCornerView.java
 package com.example.eegac;
 
 import android.content.Context;
@@ -10,111 +11,73 @@ import android.util.AttributeSet;
 import android.view.View;
 
 /**
- * 黑色背景四角闪烁方块视图。
- * 新增了UI状态管理，支持主菜单、温度菜单和模式菜单之间的切换。
- * 频率要求保持不变：
- * 左上 6Hz；右上 9Hz；左下 11Hz；右下 7Hz。
+ * 黑色背景六方块闪烁视图。
+ * 上方: F, +, B
+ * 下方: L, -, R
+ * 频率:
+ * F (上左): 6Hz
+ * + (上中): 7Hz
+ * B (上右): 8Hz
+ * L (下左): 9Hz
+ * - (下中): 11Hz
+ * R (下右): 13Hz
  */
 public class BlinkCornerView extends View {
 
-    // --- 新增：定义UI状态，加入 MODE_MENU ---
-    public enum State {
-        MAIN_MENU,  // 主菜单
-        TEMP_MENU,  // 温度调节菜单
-        MODE_MENU   // 模式选择菜单
-    }
-
-    private State currentState = State.MAIN_MENU; // 默认是主菜单
-
     private final Handler handler = new Handler(Looper.getMainLooper());
-
     private final Paint squarePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    private boolean ltOn = false; // 左上 6Hz
-    private boolean rtOn = false; // 右上 9Hz
-    private boolean lbOn = false; // 左下 11Hz
-    private boolean rbOn = false; // 右下 7Hz
+    // 6个方块的亮灭状态
+    private boolean tlOn = false; // Top-Left (F) @ 6Hz
+    private boolean tcOn = false; // Top-Center (+) @ 7Hz
+    private boolean trOn = false; // Top-Right (B) @ 8Hz
+    private boolean blOn = false; // Bottom-Left (L) @ 9Hz
+    private boolean bcOn = false; // Bottom-Center (-) @ 11Hz
+    private boolean brOn = false; // Bottom-Right (R) @ 13Hz
 
-    private static final long HALF_PERIOD_MS_LT = Math.round(1000.0 / (2.0 * 6.0));
-    private static final long HALF_PERIOD_MS_RT = Math.round(1000.0 / (2.0 * 9.0));
-    private static final long HALF_PERIOD_MS_LB = Math.round(1000.0 / (2.0 * 11.0));
-    private static final long HALF_PERIOD_MS_RB = Math.round(1000.0 / (2.0 * 7.0));
+    // 6个频率对应的半周期 (毫秒)
+    private static final long HALF_PERIOD_MS_TL = Math.round(1000.0 / (2.0 * 6.0));
+    private static final long HALF_PERIOD_MS_TC = Math.round(1000.0 / (2.0 * 7.0));
+    private static final long HALF_PERIOD_MS_TR = Math.round(1000.0 / (2.0 * 8.0));
+    private static final long HALF_PERIOD_MS_BL = Math.round(1000.0 / (2.0 * 9.0));
+    private static final long HALF_PERIOD_MS_BC = Math.round(1000.0 / (2.0 * 11.0));
+    private static final long HALF_PERIOD_MS_BR = Math.round(1000.0 / (2.0 * 13.0));
 
-    private final Runnable toggleLT = new Runnable() {
-        @Override public void run() {
-            ltOn = !ltOn;
-            invalidate();
-            handler.postDelayed(this, HALF_PERIOD_MS_LT);
-        }
-    };
 
-    private final Runnable toggleRT = new Runnable() {
-        @Override public void run() {
-            rtOn = !rtOn;
-            invalidate();
-            handler.postDelayed(this, HALF_PERIOD_MS_RT);
-        }
-    };
+    // 6个独立的Runnable来控制闪烁
+    private final Runnable toggleTL = () -> { tlOn = !tlOn; postInvalidate(); handler.postDelayed(this.toggleTL, HALF_PERIOD_MS_TL); };
+    private final Runnable toggleTC = () -> { tcOn = !tcOn; postInvalidate(); handler.postDelayed(this.toggleTC, HALF_PERIOD_MS_TC); };
+    private final Runnable toggleTR = () -> { trOn = !trOn; postInvalidate(); handler.postDelayed(this.toggleTR, HALF_PERIOD_MS_TR); };
+    private final Runnable toggleBL = () -> { blOn = !blOn; postInvalidate(); handler.postDelayed(this.toggleBL, HALF_PERIOD_MS_BL); };
+    private final Runnable toggleBC = () -> { bcOn = !bcOn; postInvalidate(); handler.postDelayed(this.toggleBC, HALF_PERIOD_MS_BC); };
+    private final Runnable toggleBR = () -> { brOn = !brOn; postInvalidate(); handler.postDelayed(this.toggleBR, HALF_PERIOD_MS_BR); };
 
-    private final Runnable toggleLB = new Runnable() {
-        @Override public void run() {
-            lbOn = !lbOn;
-            invalidate();
-            handler.postDelayed(this, HALF_PERIOD_MS_LB);
-        }
-    };
-
-    private final Runnable toggleRB = new Runnable() {
-        @Override public void run() {
-            rbOn = !rbOn;
-            invalidate();
-            handler.postDelayed(this, HALF_PERIOD_MS_RB);
-        }
-    };
-
-    public BlinkCornerView(Context context) {
-        super(context);
-        init();
-    }
 
     public BlinkCornerView(Context context, AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    public BlinkCornerView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
-    }
-
     private void init() {
         squarePaint.setStyle(Paint.Style.FILL);
         textPaint.setColor(Color.WHITE);
-        textPaint.setTextSize(sp(22));
+        textPaint.setTextSize(sp(28));
+        textPaint.setTextAlign(Paint.Align.CENTER);
         setFocusable(true);
     }
-
-    public void setState(State newState) {
-        if (this.currentState != newState) {
-            this.currentState = newState;
-            invalidate();
-        }
-    }
-
-    public State getCurrentState() {
-        return this.currentState;
-    }
-
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         handler.removeCallbacksAndMessages(null);
-        handler.post(toggleLT);
-        handler.post(toggleRT);
-        handler.post(toggleLB);
-        handler.post(toggleRB);
+        // 启动所有闪烁任务
+        handler.post(toggleTL);
+        handler.post(toggleTC);
+        handler.post(toggleTR);
+        handler.post(toggleBL);
+        handler.post(toggleBC);
+        handler.post(toggleBR);
     }
 
     @Override
@@ -127,134 +90,56 @@ public class BlinkCornerView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawColor(Color.BLACK);
-
-        // --- 核心修改：根据当前状态，调用不同的绘制方法 ---
-        switch (currentState) {
-            case MAIN_MENU:
-                drawMainMenu(canvas);
-                break;
-            case TEMP_MENU:
-                drawTempMenu(canvas);
-                break;
-            // --- 新增 case ---
-            case MODE_MENU:
-                drawModeMenu(canvas);
-                break;
-        }
+        drawSixSquareLayout(canvas);
     }
 
-    /**
-     * 绘制主菜单界面
-     */
-    private void drawMainMenu(Canvas canvas) {
+    private void drawSixSquareLayout(Canvas canvas) {
         int w = getWidth();
         int h = getHeight();
         float margin = dp(16);
-        float square = Math.min(w, h) / 3f;
+        float squareSize = (Math.min(w, h) / 3f) - (margin * 1.5f);
 
-        // 左上: 开
-        squarePaint.setColor(ltOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(margin, margin, margin + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("开", margin, margin + square + dp(28), textPaint);
+        // --- 绘制上方三个方块 ---
+        float topY = margin;
+        // 上左 (F)
+        float tl_left = margin;
+        squarePaint.setColor(tlOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(tl_left, topY, tl_left + squareSize, topY + squareSize, squarePaint);
+        canvas.drawText("F", tl_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
 
-        // 右上: 关
-        squarePaint.setColor(rtOn ? Color.WHITE : Color.BLACK);
-        float rtLeft = w - margin - square;
-        canvas.drawRect(rtLeft, margin, rtLeft + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("关", rtLeft + square, margin + square + dp(28), textPaint);
+        // 上中 (+)
+        float tc_left = (w - squareSize) / 2f;
+        squarePaint.setColor(tcOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(tc_left, topY, tc_left + squareSize, topY + squareSize, squarePaint);
+        canvas.drawText("+", tc_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
 
-        // 左下: 温度
-        squarePaint.setColor(lbOn ? Color.WHITE : Color.BLACK);
-        float lbTop = h - margin - square;
-        canvas.drawRect(margin, lbTop, margin + square, lbTop + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("温度", margin, lbTop - dp(8), textPaint);
+        // 上右 (B)
+        float tr_left = w - margin - squareSize;
+        squarePaint.setColor(trOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(tr_left, topY, tr_left + squareSize, topY + squareSize, squarePaint);
+        canvas.drawText("B", tr_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
 
-        // 右下: 模式
-        squarePaint.setColor(rbOn ? Color.WHITE : Color.BLACK);
-        float rbLeft = w - margin - square;
-        float rbTop = h - margin - square;
-        canvas.drawRect(rbLeft, rbTop, rbLeft + square, rbTop + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("模式", rbLeft + square, rbTop - dp(8), textPaint);
+
+        // --- 绘制下方三个方块 ---
+        float bottomY = h - margin - squareSize;
+        // 下左 (L)
+        float bl_left = margin;
+        squarePaint.setColor(blOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(bl_left, bottomY, bl_left + squareSize, bottomY + squareSize, squarePaint);
+        canvas.drawText("L", bl_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
+
+        // 下中 (-)
+        float bc_left = (w - squareSize) / 2f;
+        squarePaint.setColor(bcOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(bc_left, bottomY, bc_left + squareSize, bottomY + squareSize, squarePaint);
+        canvas.drawText("-", bc_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
+
+        // 下右 (R)
+        float br_left = w - margin - squareSize;
+        squarePaint.setColor(brOn ? Color.WHITE : Color.BLACK);
+        canvas.drawRect(br_left, bottomY, br_left + squareSize, bottomY + squareSize, squarePaint);
+        canvas.drawText("R", br_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
     }
-
-    /**
-     * 绘制温度调节界面
-     */
-    private void drawTempMenu(Canvas canvas) {
-        int w = getWidth();
-        int h = getHeight();
-        float margin = dp(16);
-        float square = Math.min(w, h) / 3f;
-
-        // 左上: 温度+
-        squarePaint.setColor(ltOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(margin, margin, margin + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("温度+", margin, margin + square + dp(28), textPaint);
-
-        // 右上: 温度-
-        squarePaint.setColor(rtOn ? Color.WHITE : Color.BLACK);
-        float rtLeft = w - margin - square;
-        canvas.drawRect(rtLeft, margin, rtLeft + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("温度-", rtLeft + square, margin + square + dp(28), textPaint);
-
-        // 左下: 返回
-        squarePaint.setColor(lbOn ? Color.WHITE : Color.BLACK);
-        float lbTop = h - margin - square;
-        canvas.drawRect(margin, lbTop, margin + square, lbTop + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("返回", margin, lbTop - dp(8), textPaint);
-
-        // 右下: 在此菜单中不使用，但方块保持闪烁
-        squarePaint.setColor(rbOn ? Color.WHITE : Color.BLACK);
-        float rbLeft = w - margin - square;
-        float rbTop = h - margin - square;
-        canvas.drawRect(rbLeft, rbTop, rbLeft + square, rbTop + square, squarePaint);
-    }
-
-    /**
-     * --- 新增方法：绘制模式选择界面 ---
-     */
-    private void drawModeMenu(Canvas canvas) {
-        int w = getWidth();
-        int h = getHeight();
-        float margin = dp(16);
-        float square = Math.min(w, h) / 3f;
-
-        // 左上: 制冷
-        squarePaint.setColor(ltOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(margin, margin, margin + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("制冷", margin, margin + square + dp(28), textPaint);
-
-        // 右上: 制热
-        squarePaint.setColor(rtOn ? Color.WHITE : Color.BLACK);
-        float rtLeft = w - margin - square;
-        canvas.drawRect(rtLeft, margin, rtLeft + square, margin + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("制热", rtLeft + square, margin + square + dp(28), textPaint);
-
-        // 左下: 返回
-        squarePaint.setColor(lbOn ? Color.WHITE : Color.BLACK);
-        float lbTop = h - margin - square;
-        canvas.drawRect(margin, lbTop, margin + square, lbTop + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText("返回", margin, lbTop - dp(8), textPaint);
-
-        // 右下: 除湿
-        squarePaint.setColor(rbOn ? Color.WHITE : Color.BLACK);
-        float rbLeft = w - margin - square;
-        float rbTop = h - margin - square;
-        canvas.drawRect(rbLeft, rbTop, rbLeft + square, rbTop + square, squarePaint);
-        textPaint.setTextAlign(Paint.Align.RIGHT);
-        canvas.drawText("除湿", rbLeft + square, rbTop - dp(8), textPaint);
-    }
-
 
     private float dp(float v) {
         return v * getResources().getDisplayMetrics().density;

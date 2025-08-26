@@ -34,7 +34,6 @@ import java.io.IOException;
 public class MainActivity extends AppCompatActivity {
 
     private static final String HARD_CODED_MAC_HEADSET = "74:E5:43:BE:40:2F";
-    // --- 新增：你的单片机的蓝牙MAC地址 ---
     private static final String HARD_CODED_MAC_MCU = "00:1A:FF:09:05:3F"; // 请确保这是你单片机的正确地址
 
     private BluetoothAdapter btAdapter;
@@ -42,12 +41,10 @@ public class MainActivity extends AppCompatActivity {
     private NeuroSkyReader neuroReader;
     private ImageView imgSignal;
     private TextView tvFreq;
+    // BlinkCornerView 变量保持不变
     private com.example.eegac.BlinkCornerView blinkView;
-
-    // --- 新增：蓝牙指令发送器 ---
     private BluetoothCommandSender commandSender;
 
-    // ... (FFT 和缓冲区的代码保持不变)
     private static final int FFT_BITS = 9;
     private static final int WINDOW_SIZE = 1 << FFT_BITS;
     private final FFT fft = new FFT(FFT_BITS);
@@ -77,10 +74,6 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-    /**
-     * 当一个数据窗口准备好时被调用。
-     * 这是所有脑电波信号处理和决策的核心。
-     */
     private void onWindowReady() {
         for (int i = 0; i < WINDOW_SIZE; i++) { real[i] = buffer[i]; imag[i] = 0.0; }
         fft.doFFT(real, imag, false);
@@ -98,77 +91,56 @@ public class MainActivity extends AppCompatActivity {
 
         int canonical = canonicalizePeak(peak);
         if (canonical <= 0) {
-            updateFreqText("其他诱发电位");
+            updateFreqText("...");
             return;
         }
         updateFreqText(canonical + " Hz");
 
-        // --- 核心修改：在这里发送指令 ---
-        // 发送前检查是否已连接
         if (commandSender == null) {
-            // 如果你希望在未连接时提醒用户，可以取消下面的注释
-            // Toast.makeText(this, "蓝牙设备未连接", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        BlinkCornerView.State currentState = blinkView.getCurrentState();
-
-        if (currentState == BlinkCornerView.State.MAIN_MENU) {
-            switch (canonical) {
-                case 6:
-                    Toast.makeText(this, "触发：开(6Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_POWER_ON);
-                    break;
-                case 7:
-                    Toast.makeText(this, "切换UI：进入模式菜单", Toast.LENGTH_SHORT).show();
-                    blinkView.setState(BlinkCornerView.State.MODE_MENU);
-                    break;
-                case 9:
-                    Toast.makeText(this, "触发：关(9Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_POWER_OFF);
-                    break;
-                case 11:
-                    Toast.makeText(this, "切换UI：进入温度菜单", Toast.LENGTH_SHORT).show();
-                    blinkView.setState(BlinkCornerView.State.TEMP_MENU);
-                    break;
-            }
-        } else if (currentState == BlinkCornerView.State.TEMP_MENU) {
-            switch (canonical) {
-                case 6:
-                    Toast.makeText(this, "触发：温度+(6Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_TEMP_UP);
-                    break;
-                case 9:
-                    Toast.makeText(this, "触发：温度-(9Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_TEMP_DOWN);
-                    break;
-                case 11:
-                    Toast.makeText(this, "切换UI：返回主菜单", Toast.LENGTH_SHORT).show();
-                    blinkView.setState(BlinkCornerView.State.MAIN_MENU);
-                    break;
-            }
-        } else if (currentState == BlinkCornerView.State.MODE_MENU) {
-            switch (canonical) {
-                case 6:
-                    Toast.makeText(this, "触发：制冷(6Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_MODE_COOL);
-                    break;
-                case 7:
-                    Toast.makeText(this, "触发：除湿(7Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_MODE_DRY);
-                    break;
-                case 9:
-                    Toast.makeText(this, "触发：制热(9Hz)", Toast.LENGTH_SHORT).show();
-                    commandSender.sendCommand(AcCommands.CMD_MODE_HEAT);
-                    break;
-                case 11:
-                    Toast.makeText(this, "切换UI：返回主菜单", Toast.LENGTH_SHORT).show();
-                    blinkView.setState(BlinkCornerView.State.MAIN_MENU);
-                    break;
-            }
+        // --- 核心修改：更新为6个指令的逻辑 ---
+        switch (canonical) {
+            case 6: // 上左 -> F (前进)
+                Toast.makeText(this, "触发: F (前进)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_FORWARD);
+                break;
+            case 7: // 上中 -> + (加速)
+                Toast.makeText(this, "触发: + (加速)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_SPEED_UP);
+                break;
+            case 8: // 上右 -> B (后退)
+                Toast.makeText(this, "触发: B (后退)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_BACKWARD);
+                break;
+            case 9: // 下左 -> L (左转)
+                Toast.makeText(this, "触发: L (左转)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_TURN_LEFT);
+                break;
+            case 11: // 下中 -> - (减速)
+                Toast.makeText(this, "触发: - (减速)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_SPEED_DOWN);
+                break;
+            case 13: // 下右 -> R (右转)
+                Toast.makeText(this, "触发: R (右转)", Toast.LENGTH_SHORT).show();
+                commandSender.sendCommand(AcCommands.CMD_TURN_RIGHT);
+                break;
         }
     }
 
+    // --- canonicalizePeak 方法需要更新以识别新的频率 ---
+    private int canonicalizePeak(int peak) {
+        if (peak == 6 || peak == 12) return 6;
+        if (peak == 7 || peak == 14) return 7;
+        if (peak == 8 || peak == 16) return 8;
+        if (peak == 9 || peak == 18) return 9;
+        if (peak == 11 || peak == 22) return 11;
+        if (peak == 13 || peak == 26) return 13;
+        return -1;
+    }
+
+    // ... onCreate 及其他蓝牙连接方法保持不变 ...
     private ActivityResultLauncher<String> btConnectPermissionLauncher;
     private ActivityResultLauncher<Intent> enableBtLauncher;
 
@@ -219,7 +191,6 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialButton btnConnectHeadset = content.findViewById(R.id.btn_connect_headset);
         MaterialButton btnConnectBluetooth = content.findViewById(R.id.btn_connect_bluetooth);
-        // ... (测试按钮的代码保持不变)
 
         btnConnectHeadset.setOnClickListener(v -> {
             dialog.dismiss();
@@ -237,7 +208,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void connectBluetoothDevice(String mac) {
-        // ... (权限检查和蓝牙开启的代码保持不变)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 btConnectPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT);
@@ -250,13 +220,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // --- 核心修改：连接成功后，初始化 commandSender ---
         connector.connectHardcoded(mac, new HeadsetConnector.Listener() {
             @Override
             public void onConnected(android.bluetooth.BluetoothSocket socket) {
                 Toast.makeText(MainActivity.this, "单片机连接成功", Toast.LENGTH_LONG).show();
                 try {
-                    // 如果之前有连接，先断开
                     if (commandSender != null) {
                         commandSender.disconnect();
                     }
@@ -321,22 +289,12 @@ public class MainActivity extends AppCompatActivity {
             neuroReader.shutdown();
             neuroReader = null;
         }
-        // --- 新增：关闭蓝牙连接 ---
         if (commandSender != null) {
             commandSender.disconnect();
             commandSender = null;
         }
     }
-
-    // ... (updateFreqText, canonicalizePeak, updateSignalIcon 方法保持不变)
     private void updateFreqText(String text) { if (tvFreq != null) tvFreq.setText(text); }
-    private int canonicalizePeak(int peak) {
-        if (peak == 6 || peak == 12) return 6;
-        if (peak == 7 || peak == 14) return 7;
-        if (peak == 9 || peak == 18) return 9;
-        if (peak == 11 || peak == 22) return 11;
-        return -1;
-    }
     private void updateSignalIcon(int signal) {
         if (imgSignal == null) return;
         if (signal == 0) imgSignal.setImageResource(R.drawable.greenlight);
