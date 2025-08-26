@@ -19,4 +19,4 @@ public final class AcCommands {
     public static final byte CMD_MODE_COOL = 0x05; // 制冷
     public static final byte CMD_MODE_HEAT = 0x06; // 制热
     public static final byte CMD_MODE_DRY  = 0x07; // 除湿
-}
+}//
