@@ -11,7 +11,7 @@ import android.util.AttributeSet;
 import android.view.View;
 
 /**
- * 黑色背景六方块闪烁视图。//
+ * 黑色背景六方块闪烁视图。////
  * 上方: F, +, B
  * 下方: L, -, R
  * 频率:
