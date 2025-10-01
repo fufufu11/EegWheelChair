@@ -5,7 +5,7 @@
     <!-- Android 12+ 蓝牙连接权限 -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- 兼容旧版 -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
 
     <application

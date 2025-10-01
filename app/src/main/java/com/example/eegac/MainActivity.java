@@ -1,10 +1,12 @@
 // MainActivity.java
 package com.example.eegac;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -41,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
     private NeuroSkyReader neuroReader;
     private ImageView imgSignal;
     private TextView tvFreq;
-    // BlinkCornerView 变量保持不变
     private com.example.eegac.BlinkCornerView blinkView;
     private BluetoothCommandSender commandSender;
 
@@ -100,36 +101,16 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // --- 核心修改：更新为6个指令的逻辑 ---
         switch (canonical) {
-            case 6: // 上左 -> F (前进)
-                Toast.makeText(this, "触发: F (前进)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_FORWARD);
-                break;
-            case 7: // 上中 -> + (加速)
-                Toast.makeText(this, "触发: + (加速)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_SPEED_UP);
-                break;
-            case 8: // 上右 -> B (后退)
-                Toast.makeText(this, "触发: B (后退)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_BACKWARD);
-                break;
-            case 9: // 下左 -> L (左转)
-                Toast.makeText(this, "触发: L (左转)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_TURN_LEFT);
-                break;
-            case 11: // 下中 -> - (减速)
-                Toast.makeText(this, "触发: - (减速)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_SPEED_DOWN);
-                break;
-            case 13: // 下右 -> R (右转)
-                Toast.makeText(this, "触发: R (右转)", Toast.LENGTH_SHORT).show();
-                commandSender.sendCommand(AcCommands.CMD_TURN_RIGHT);
-                break;
+            case 6: commandSender.sendCommand(AcCommands.CMD_FORWARD); break;
+            case 7: commandSender.sendCommand(AcCommands.CMD_SPEED_UP); break;
+            case 8: commandSender.sendCommand(AcCommands.CMD_BACKWARD); break;
+            case 9: commandSender.sendCommand(AcCommands.CMD_TURN_LEFT); break;
+            case 11: commandSender.sendCommand(AcCommands.CMD_SPEED_DOWN); break;
+            case 13: commandSender.sendCommand(AcCommands.CMD_TURN_RIGHT); break;
         }
     }
 
-    // --- canonicalizePeak 方法需要更新以识别新的频率 ---
     private int canonicalizePeak(int peak) {
         if (peak == 6 || peak == 12) return 6;
         if (peak == 7 || peak == 14) return 7;
@@ -140,8 +121,8 @@ public class MainActivity extends AppCompatActivity {
         return -1;
     }
 
-    // ... onCreate 及其他蓝牙连接方法保持不变 ...
-    private ActivityResultLauncher<String> btConnectPermissionLauncher;
+    // --- 1. 修改：权限请求器现在处理多个权限 ---
+    private ActivityResultLauncher<String[]> permissionLauncher;
     private ActivityResultLauncher<Intent> enableBtLauncher;
 
     @Override
@@ -156,29 +137,30 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (btAdapter == null) {
+            Toast.makeText(this, "此设备不支持蓝牙", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
         connector = new HeadsetConnector(this);
 
-        btConnectPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            if (isGranted) {
-                ensureBluetoothEnabledThenConnect();
+        // --- 2. 修改：使用 RequestMultiplePermissions 来注册请求器 ---
+        permissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), permissions -> {
+            if (Boolean.TRUE.equals(permissions.get(Manifest.permission.BLUETOOTH_CONNECT)) &&
+                    Boolean.TRUE.equals(permissions.get(Manifest.permission.BLUETOOTH_SCAN))) {
+                Toast.makeText(this, "蓝牙权限已获取", Toast.LENGTH_SHORT).show();
             } else {
-                Toast.makeText(this, "缺少蓝牙连接权限", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "需要蓝牙连接和扫描权限才能继续", Toast.LENGTH_LONG).show();
             }
         });
 
         enableBtLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (result.getResultCode() == Activity.RESULT_OK) {
-                doConnectHeadset();
-            } else {
+            if (result.getResultCode() != Activity.RESULT_OK) {
                 Toast.makeText(this, "蓝牙未开启", Toast.LENGTH_LONG).show();
             }
         });
 
-        View btnConnect = findViewById(R.id.btn_connect);
-        if (btnConnect != null) {
-            btnConnect.setOnClickListener(v -> showBottomMenu());
-        }
-
+        findViewById(R.id.btn_connect).setOnClickListener(v -> showBottomMenu());
         imgSignal = findViewById(R.id.img_signal);
         tvFreq = findViewById(R.id.tv_freq);
         blinkView = findViewById(R.id.blink_view);
@@ -194,32 +176,23 @@ public class MainActivity extends AppCompatActivity {
 
         btnConnectHeadset.setOnClickListener(v -> {
             dialog.dismiss();
-            Toast.makeText(this, "开始连接耳机", Toast.LENGTH_SHORT).show();
             connectHeadset();
         });
 
         btnConnectBluetooth.setOnClickListener(v -> {
             dialog.dismiss();
-            Toast.makeText(this, "开始连接单片机", Toast.LENGTH_SHORT).show();
             connectBluetoothDevice(HARD_CODED_MAC_MCU);
         });
 
         dialog.show();
     }
 
+    // --- 3. 修改：调用统一的检查方法 ---
     private void connectBluetoothDevice(String mac) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                btConnectPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT);
-                return;
-            }
+        if (!checkPermissionsAndBluetooth()) {
+            return; // 如果权限或蓝牙状态不满足，则停止
         }
-        if (btAdapter == null) { Toast.makeText(this, "此设备不支持蓝牙", Toast.LENGTH_LONG).show(); return; }
-        if (!btAdapter.isEnabled()) {
-            enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-            return;
-        }
-
+        Toast.makeText(this, "开始连接单片机", Toast.LENGTH_SHORT).show();
         connector.connectHardcoded(mac, new HeadsetConnector.Listener() {
             @Override
             public void onConnected(android.bluetooth.BluetoothSocket socket) {
@@ -243,24 +216,38 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // --- 3. 修改：调用统一的检查方法 ---
     private void connectHeadset() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                btConnectPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT);
-                return;
-            }
+        if (!checkPermissionsAndBluetooth()) {
+            return; // 如果权限或蓝牙状态不满足，则停止
         }
-        ensureBluetoothEnabledThenConnect();
-    }
-
-    private void ensureBluetoothEnabledThenConnect() {
-        if (btAdapter == null) { Toast.makeText(this, "此设备不支持蓝牙", Toast.LENGTH_LONG).show(); return; }
-        if (!btAdapter.isEnabled()) {
-            enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
-            return;
-        }
+        Toast.makeText(this, "开始连接耳机", Toast.LENGTH_SHORT).show();
         doConnectHeadset();
     }
+
+    // --- 4. 新增：统一的权限和蓝牙状态检查方法 ---
+    private boolean checkPermissionsAndBluetooth() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            boolean hasConnectPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
+            boolean hasScanPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED;
+            if (!hasConnectPermission || !hasScanPermission) {
+                // 请求两个权限
+                permissionLauncher.launch(new String[]{
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                        Manifest.permission.BLUETOOTH_SCAN
+                });
+                return false; // 停止执行，等待用户授权
+            }
+        }
+        if (!btAdapter.isEnabled()) {
+            enableBtLauncher.launch(new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE));
+            return false; // 停止执行，等待用户开启蓝牙
+        }
+        return true; // 所有条件都满足
+    }
+
+
+    // `ensureBluetoothEnabledThenConnect` 方法不再需要，其逻辑已合并到 checkPermissionsAndBluetooth 中
 
     private void doConnectHeadset() {
         connector.connectHardcoded(HARD_CODED_MAC_HEADSET, new HeadsetConnector.Listener() {
@@ -294,6 +281,7 @@ public class MainActivity extends AppCompatActivity {
             commandSender = null;
         }
     }
+
     private void updateFreqText(String text) { if (tvFreq != null) tvFreq.setText(text); }
     private void updateSignalIcon(int signal) {
         if (imgSignal == null) return;
