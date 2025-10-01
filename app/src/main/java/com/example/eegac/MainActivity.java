@@ -33,7 +33,7 @@ import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String HARD_CODED_MAC_HEADSET = "74:E5:43:BE:40:2F";
+    private static final String HARD_CODED_MAC_HEADSET = "35:53:17:04:14:4B";
     private static final String HARD_CODED_MAC_MCU = "00:1A:FF:09:05:3F"; // 请确保这是你单片机的正确地址
 
     private BluetoothAdapter btAdapter;
