@@ -17,22 +17,24 @@
         android:gravity="center_horizontal"
         android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/img_signal"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:contentDescription="@string/app_name"
-            android:src="@drawable/redlight" />
-
         <TextView
-            android:id="@+id/tv_freq"
+            android:id="@+id/tv_connection_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="未连接"
+            android:text="脑波设备未连接"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_triggered_freq"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#C0C0C0"
+            android:textSize="16sp"
+            android:visibility="gone"
+            android:text="已触发 HZ电位" />
 
     </LinearLayout>
 
@@ -41,9 +43,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentStart="true"
-        android:layout_marginStart="150dp"
-        android:layout_marginBottom="80dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="40dp"
         android:text="连接" />
 
 </RelativeLayout>

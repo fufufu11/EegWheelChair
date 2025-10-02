@@ -10,47 +10,29 @@ import android.os.Looper;
 import android.util.AttributeSet;
 import android.view.View;
 
-/**
- * 黑色背景六方块闪烁视图。////
- * 上方: F, +, B
- * 下方: L, -, R
- * 频率:
- * F (上左): 6Hz
- * + (上中): 7Hz
- * B (上右): 8Hz
- * L (下左): 9Hz
- * - (下中): 11Hz
- * R (下右): 13Hz
- */
 public class BlinkCornerView extends View {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Paint squarePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint hzPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint highlightedHzPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-    // 6个方块的亮灭状态
-    private boolean tlOn = false; // Top-Left (F) @ 6Hz
-    private boolean tcOn = false; // Top-Center (+) @ 7Hz
-    private boolean trOn = false; // Top-Right (B) @ 8Hz
-    private boolean blOn = false; // Bottom-Left (L) @ 9Hz
-    private boolean bcOn = false; // Bottom-Center (-) @ 11Hz
-    private boolean brOn = false; // Bottom-Right (R) @ 13Hz
+    private int highlightedFreq = -1;
 
-    // 6个频率对应的半周期 (毫秒)
-    private static final long HALF_PERIOD_MS_TL = Math.round(1000.0 / (2.0 * 6.0));
-    private static final long HALF_PERIOD_MS_TC = Math.round(1000.0 / (2.0 * 7.0));
-    private static final long HALF_PERIOD_MS_TR = Math.round(1000.0 / (2.0 * 8.0));
-    private static final long HALF_PERIOD_MS_BL = Math.round(1000.0 / (2.0 * 9.0));
-    private static final long HALF_PERIOD_MS_BC = Math.round(1000.0 / (2.0 * 11.0));
-    private static final long HALF_PERIOD_MS_BR = Math.round(1000.0 / (2.0 * 13.0));
+    private boolean tlOn = false; // Top-Left (前进) @ 6Hz
+    private boolean trOn = false; // Top-Right (右转) @ 8Hz
+    private boolean blOn = false; // Bottom-Left (左转) @ 11Hz
+    private boolean brOn = false; // Bottom-Right (后退) @ 13Hz
 
+    private static final long HALF_PERIOD_MS_TL = Math.round(1000.0 / (2.0 * 6.0));  // 6Hz
+    private static final long HALF_PERIOD_MS_TR = Math.round(1000.0 / (2.0 * 8.0));  // 8Hz
+    private static final long HALF_PERIOD_MS_BL = Math.round(1000.0 / (2.0 * 11.0)); // 11Hz
+    private static final long HALF_PERIOD_MS_BR = Math.round(1000.0 / (2.0 * 13.0)); // 13Hz
 
-    // 6个独立的Runnable来控制闪烁
     private final Runnable toggleTL = () -> { tlOn = !tlOn; postInvalidate(); handler.postDelayed(this.toggleTL, HALF_PERIOD_MS_TL); };
-    private final Runnable toggleTC = () -> { tcOn = !tcOn; postInvalidate(); handler.postDelayed(this.toggleTC, HALF_PERIOD_MS_TC); };
     private final Runnable toggleTR = () -> { trOn = !trOn; postInvalidate(); handler.postDelayed(this.toggleTR, HALF_PERIOD_MS_TR); };
     private final Runnable toggleBL = () -> { blOn = !blOn; postInvalidate(); handler.postDelayed(this.toggleBL, HALF_PERIOD_MS_BL); };
-    private final Runnable toggleBC = () -> { bcOn = !bcOn; postInvalidate(); handler.postDelayed(this.toggleBC, HALF_PERIOD_MS_BC); };
     private final Runnable toggleBR = () -> { brOn = !brOn; postInvalidate(); handler.postDelayed(this.toggleBR, HALF_PERIOD_MS_BR); };
 
 
@@ -61,22 +43,45 @@ public class BlinkCornerView extends View {
 
     private void init() {
         squarePaint.setStyle(Paint.Style.FILL);
+
         textPaint.setColor(Color.WHITE);
-        textPaint.setTextSize(sp(28));
+        textPaint.setTextSize(sp(28)); // 字体大小可以根据方块大小调整
         textPaint.setTextAlign(Paint.Align.CENTER);
+
+        hzPaint.setColor(Color.LTGRAY);
+        hzPaint.setTextSize(sp(14));
+        hzPaint.setTextAlign(Paint.Align.CENTER);
+
+        highlightedHzPaint.setColor(Color.GREEN);
+        highlightedHzPaint.setTextSize(sp(16));
+        highlightedHzPaint.setTextAlign(Paint.Align.CENTER);
+        highlightedHzPaint.setFakeBoldText(true);
+
         setFocusable(true);
     }
+
+    public void highlightFrequency(int freq) {
+        this.highlightedFreq = freq;
+        postInvalidate();
+        handler.removeCallbacks(resetHighlight);
+        if (freq > 0) {
+            handler.postDelayed(resetHighlight, 500);
+        }
+    }
+
+    private final Runnable resetHighlight = () -> {
+        highlightedFreq = -1;
+        postInvalidate();
+    };
+
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         handler.removeCallbacksAndMessages(null);
-        // 启动所有闪烁任务
         handler.post(toggleTL);
-        handler.post(toggleTC);
         handler.post(toggleTR);
         handler.post(toggleBL);
-        handler.post(toggleBC);
         handler.post(toggleBR);
     }
 
@@ -90,56 +95,52 @@ public class BlinkCornerView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         canvas.drawColor(Color.BLACK);
-        drawSixSquareLayout(canvas);
+        drawFourCornerLayout(canvas);
     }
 
-    private void drawSixSquareLayout(Canvas canvas) {
+    private void drawFourCornerLayout(Canvas canvas) {
         int w = getWidth();
         int h = getHeight();
-        float margin = dp(16);
-        float squareSize = (Math.min(w, h) / 3f) - (margin * 1.5f);
 
-        // --- 绘制上方三个方块 ---
-        float topY = margin;
-        // 上左 (F)
-        float tl_left = margin;
+        // --- 修改点：调整边距和方块大小 ---
+        float margin = dp(40); // 将边距从 24dp 增加到 40dp
+        float squareSize = (Math.min(w, h) / 3.5f); // 将尺寸除数从 2.5 增加到 3.5，使方块变小
+
+        // --- 绘制左上角 (前进) ---
+        float tl_centerX = margin + squareSize / 2;
+        float tl_centerY = margin + squareSize / 2;
         squarePaint.setColor(tlOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(tl_left, topY, tl_left + squareSize, topY + squareSize, squarePaint);
-        canvas.drawText("F", tl_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
+        canvas.drawRect(margin, margin, margin + squareSize, margin + squareSize, squarePaint);
+        canvas.drawText("前进", tl_centerX, tl_centerY + dp(10), textPaint);
+        canvas.drawText("6 Hz", tl_centerX, tl_centerY + dp(36), (highlightedFreq == 6) ? highlightedHzPaint : hzPaint);
 
-        // 上中 (+)
-        float tc_left = (w - squareSize) / 2f;
-        squarePaint.setColor(tcOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(tc_left, topY, tc_left + squareSize, topY + squareSize, squarePaint);
-        canvas.drawText("+", tc_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
 
-        // 上右 (B)
-        float tr_left = w - margin - squareSize;
+        // --- 绘制右上角 (右转) ---
+        float tr_centerX = w - margin - squareSize / 2;
+        float tr_centerY = margin + squareSize / 2;
         squarePaint.setColor(trOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(tr_left, topY, tr_left + squareSize, topY + squareSize, squarePaint);
-        canvas.drawText("B", tr_left + squareSize / 2, topY + squareSize / 2 + dp(10), textPaint);
+        canvas.drawRect(w - margin - squareSize, margin, w - margin, margin + squareSize, squarePaint);
+        canvas.drawText("右转", tr_centerX, tr_centerY + dp(10), textPaint);
+        canvas.drawText("8 Hz", tr_centerX, tr_centerY + dp(36), (highlightedFreq == 8) ? highlightedHzPaint : hzPaint);
 
 
-        // --- 绘制下方三个方块 ---
-        float bottomY = h - margin - squareSize;
-        // 下左 (L)
-        float bl_left = margin;
+        // --- 绘制左下角 (左转) ---
+        float bl_centerX = margin + squareSize / 2;
+        float bl_centerY = h - margin - squareSize / 2;
         squarePaint.setColor(blOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(bl_left, bottomY, bl_left + squareSize, bottomY + squareSize, squarePaint);
-        canvas.drawText("L", bl_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
+        canvas.drawRect(margin, h - margin - squareSize, margin + squareSize, h - margin, squarePaint);
+        canvas.drawText("左转", bl_centerX, bl_centerY + dp(10), textPaint);
+        canvas.drawText("11 Hz", bl_centerX, bl_centerY - dp(24), (highlightedFreq == 11) ? highlightedHzPaint : hzPaint);
 
-        // 下中 (-)
-        float bc_left = (w - squareSize) / 2f;
-        squarePaint.setColor(bcOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(bc_left, bottomY, bc_left + squareSize, bottomY + squareSize, squarePaint);
-        canvas.drawText("-", bc_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
-
-        // 下右 (R)
-        float br_left = w - margin - squareSize;
+        // --- 绘制右下角 (后退) ---
+        float br_centerX = w - margin - squareSize / 2;
+        float br_centerY = h - margin - squareSize / 2;
         squarePaint.setColor(brOn ? Color.WHITE : Color.BLACK);
-        canvas.drawRect(br_left, bottomY, br_left + squareSize, bottomY + squareSize, squarePaint);
-        canvas.drawText("R", br_left + squareSize / 2, bottomY + squareSize / 2 + dp(10), textPaint);
+        canvas.drawRect(w - margin - squareSize, h - margin - squareSize, w - margin, h - margin, squarePaint);
+        canvas.drawText("后退", br_centerX, br_centerY + dp(10), textPaint);
+        canvas.drawText("13 Hz", br_centerX, br_centerY - dp(24), (highlightedFreq == 13) ? highlightedHzPaint : hzPaint);
     }
+
 
     private float dp(float v) {
         return v * getResources().getDisplayMetrics().density;
