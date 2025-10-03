@@ -78,28 +78,18 @@ public class MainActivity extends AppCompatActivity {
         fft.doFFT(real, imag, false);
         fft.computeAmplitude(real, imag, amp);
 
-        // --- 修改点：更新目标频率为4个 ---
         int[] targetFreqs = {6, 8, 11, 13};
-        double maxSnr = -1.0;
+        double maxCombinedSnr = -1.0;
         int bestPeak = -1;
 
         for (int freq : targetFreqs) {
-            if (freq >= amp.length) continue;
-            double signal = amp[freq];
-            double noise = 0;
-            int noiseBins = 0;
-            for (int offset = -2; offset <= 2; offset++) {
-                if (offset == 0) continue;
-                int bin = freq + offset;
-                if (bin > 0 && bin < amp.length) {
-                    noise += amp[bin];
-                    noiseBins++;
-                }
-            }
-            double meanNoise = (noiseBins > 0) ? (noise / noiseBins) : 1.0;
-            double snr = (meanNoise > 0) ? (signal / meanNoise) : 0;
-            if (snr > maxSnr) {
-                maxSnr = snr;
+            double snrFundamental = calculateSnr(freq);
+            int harmonicFreq = freq * 2;
+            double snrHarmonic = calculateSnr(harmonicFreq);
+            double combinedSnr = snrFundamental + 0.5 * snrHarmonic;
+
+            if (combinedSnr > maxCombinedSnr) {
+                maxCombinedSnr = combinedSnr;
                 bestPeak = freq;
             }
         }
@@ -113,11 +103,13 @@ public class MainActivity extends AppCompatActivity {
             lastPeak = peak;
         }
 
+        // --- 修改点：将确认次数从 2 改回 3 ---
         if (repeatCount < 3) return;
+
         repeatCount = 0;
 
         int canonical = canonicalizePeak(peak);
-        updateTriggeredFrequency(canonical, maxSnr);
+        updateTriggeredFrequency(canonical, maxCombinedSnr);
         if (blinkView != null) {
             blinkView.highlightFrequency(canonical);
         }
@@ -130,7 +122,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // --- 修改点：更新指令映射为4个 ---
         switch (canonical) {
             case 6: commandSender.sendCommand(AcCommands.CMD_FORWARD); break;
             case 8: commandSender.sendCommand(AcCommands.CMD_TURN_RIGHT); break;
@@ -139,7 +130,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // --- 修改点：更新归类逻辑以匹配新的4个频率 ---
+    private double calculateSnr(int freq) {
+        if (freq <= 0 || freq >= amp.length) {
+            return 0;
+        }
+        double signal = amp[freq];
+        double noise = 0;
+        int noiseBins = 0;
+        for (int offset = -2; offset <= 2; offset++) {
+            if (offset == 0) continue;
+            int bin = freq + offset;
+            if (bin > 0 && bin < amp.length) {
+                noise += amp[bin];
+                noiseBins++;
+            }
+        }
+        double meanNoise = (noiseBins > 0) ? (noise / noiseBins) : 1.0;
+        return (meanNoise > 0) ? (signal / meanNoise) : 0;
+    }
+
+
     private int canonicalizePeak(int peak) {
         if (peak >= 5 && peak <= 7) return 6;
         if (peak > 7 && peak <= 9) return 8;

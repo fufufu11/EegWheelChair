@@ -45,15 +45,15 @@ public class BlinkCornerView extends View {
         squarePaint.setStyle(Paint.Style.FILL);
 
         textPaint.setColor(Color.WHITE);
-        textPaint.setTextSize(sp(28)); // 字体大小可以根据方块大小调整
+        textPaint.setTextSize(sp(24)); // 字体也相应缩小一点
         textPaint.setTextAlign(Paint.Align.CENTER);
 
         hzPaint.setColor(Color.LTGRAY);
-        hzPaint.setTextSize(sp(14));
+        hzPaint.setTextSize(sp(12));
         hzPaint.setTextAlign(Paint.Align.CENTER);
 
         highlightedHzPaint.setColor(Color.GREEN);
-        highlightedHzPaint.setTextSize(sp(16));
+        highlightedHzPaint.setTextSize(sp(14));
         highlightedHzPaint.setTextAlign(Paint.Align.CENTER);
         highlightedHzPaint.setFakeBoldText(true);
 
@@ -102,17 +102,17 @@ public class BlinkCornerView extends View {
         int w = getWidth();
         int h = getHeight();
 
-        // --- 修改点：调整边距和方块大小 ---
-        float margin = dp(40); // 将边距从 24dp 增加到 40dp
-        float squareSize = (Math.min(w, h) / 3.5f); // 将尺寸除数从 2.5 增加到 3.5，使方块变小
+        // --- 修改点：进一步调整边距和方块大小 ---
+        float margin = dp(20); // 边距调整为更贴近角落
+        float squareSize = (Math.min(w, h) / 4.0f); // 将尺寸除数增加到4.0，使方块更小
 
         // --- 绘制左上角 (前进) ---
         float tl_centerX = margin + squareSize / 2;
         float tl_centerY = margin + squareSize / 2;
         squarePaint.setColor(tlOn ? Color.WHITE : Color.BLACK);
         canvas.drawRect(margin, margin, margin + squareSize, margin + squareSize, squarePaint);
-        canvas.drawText("前进", tl_centerX, tl_centerY + dp(10), textPaint);
-        canvas.drawText("6 Hz", tl_centerX, tl_centerY + dp(36), (highlightedFreq == 6) ? highlightedHzPaint : hzPaint);
+        canvas.drawText("前进", tl_centerX, tl_centerY + dp(8), textPaint);
+        canvas.drawText("6 Hz", tl_centerX, tl_centerY + dp(30), (highlightedFreq == 6) ? highlightedHzPaint : hzPaint);
 
 
         // --- 绘制右上角 (右转) ---
@@ -120,8 +120,8 @@ public class BlinkCornerView extends View {
         float tr_centerY = margin + squareSize / 2;
         squarePaint.setColor(trOn ? Color.WHITE : Color.BLACK);
         canvas.drawRect(w - margin - squareSize, margin, w - margin, margin + squareSize, squarePaint);
-        canvas.drawText("右转", tr_centerX, tr_centerY + dp(10), textPaint);
-        canvas.drawText("8 Hz", tr_centerX, tr_centerY + dp(36), (highlightedFreq == 8) ? highlightedHzPaint : hzPaint);
+        canvas.drawText("右转", tr_centerX, tr_centerY + dp(8), textPaint);
+        canvas.drawText("8 Hz", tr_centerX, tr_centerY + dp(30), (highlightedFreq == 8) ? highlightedHzPaint : hzPaint);
 
 
         // --- 绘制左下角 (左转) ---
@@ -129,16 +129,16 @@ public class BlinkCornerView extends View {
         float bl_centerY = h - margin - squareSize / 2;
         squarePaint.setColor(blOn ? Color.WHITE : Color.BLACK);
         canvas.drawRect(margin, h - margin - squareSize, margin + squareSize, h - margin, squarePaint);
-        canvas.drawText("左转", bl_centerX, bl_centerY + dp(10), textPaint);
-        canvas.drawText("11 Hz", bl_centerX, bl_centerY - dp(24), (highlightedFreq == 11) ? highlightedHzPaint : hzPaint);
+        canvas.drawText("左转", bl_centerX, bl_centerY + dp(8), textPaint);
+        canvas.drawText("11 Hz", bl_centerX, bl_centerY - dp(20), (highlightedFreq == 11) ? highlightedHzPaint : hzPaint);
 
         // --- 绘制右下角 (后退) ---
         float br_centerX = w - margin - squareSize / 2;
         float br_centerY = h - margin - squareSize / 2;
         squarePaint.setColor(brOn ? Color.WHITE : Color.BLACK);
         canvas.drawRect(w - margin - squareSize, h - margin - squareSize, w - margin, h - margin, squarePaint);
-        canvas.drawText("后退", br_centerX, br_centerY + dp(10), textPaint);
-        canvas.drawText("13 Hz", br_centerX, br_centerY - dp(24), (highlightedFreq == 13) ? highlightedHzPaint : hzPaint);
+        canvas.drawText("后退", br_centerX, br_centerY + dp(8), textPaint);
+        canvas.drawText("13 Hz", br_centerX, br_centerY - dp(20), (highlightedFreq == 13) ? highlightedHzPaint : hzPaint);
     }
 
 
